@@ -1,38 +1,32 @@
 #include <iostream>
 #include <vector>
-#include <queue>
 #include <cstring>
 
 using namespace std;
 
 const int MAXN = 100005;
 vector<int> adj[MAXN];
-int color[MAXN];
+int degree[MAXN];
 bool visited[MAXN];
+int color[MAXN];
+bool can_be_invited[MAXN];
 
-bool is_bipartite(int start, int& component_size) {
-    queue<int> q;
-    q.push(start);
-    color[start] = 0;
-    visited[start] = true;
-    component_size = 0;
+bool dfs_check_bipartite(int u) {
+    visited[u] = true;
+    can_be_invited[u] = true; // Assume can be invited initially
     
-    while (!q.empty()) {
-        int u = q.front();
-        q.pop();
-        component_size++;
-        
-        for (int v : adj[u]) {
-            if (!visited[v]) {
-                visited[v] = true;
-                color[v] = color[u] ^ 1;
-                q.push(v);
-            } else if (color[v] == color[u]) {
+    for (int v : adj[u]) {
+        if (!visited[v]) {
+            color[v] = color[u] ^ 1;
+            if (!dfs_check_bipartite(v)) {
                 return false;
             }
+        } else if (color[v] == color[u]) {
+            // Found odd cycle - all nodes in this component can be invited
+            return false;
         }
     }
-    return true;
+    return true; // Bipartite
 }
 
 int main() {
@@ -47,19 +41,33 @@ int main() {
         cin >> x >> y;
         adj[x].push_back(y);
         adj[y].push_back(x);
+        degree[x]++;
+        degree[y]++;
     }
     
     memset(visited, false, sizeof(visited));
     memset(color, -1, sizeof(color));
-    
-    int answer = 0;
+    memset(can_be_invited, false, sizeof(can_be_invited));
     
     for (int i = 1; i <= n; i++) {
-        if (!visited[i]) {
-            int component_size = 0;
-            if (is_bipartite(i, component_size)) {
-                answer += component_size;
+        if (!visited[i] && degree[i] >= 2) {
+            color[i] = 0;
+            if (!dfs_check_bipartite(i)) {
+                // Component has odd cycle, all nodes with degree >= 2 can be invited
+                for (int j = 1; j <= n; j++) {
+                    if (visited[j] && degree[j] >= 2) {
+                        can_be_invited[j] = true;
+                    }
+                }
             }
+            // If component is bipartite, can_be_invited remains false for these nodes
+        }
+    }
+    
+    int answer = 0;
+    for (int i = 1; i <= n; i++) {
+        if (!can_be_invited[i]) {
+            answer++;
         }
     }
     

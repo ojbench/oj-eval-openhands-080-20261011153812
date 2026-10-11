@@ -10,23 +10,66 @@ int degree[MAXN];
 bool visited[MAXN];
 int color[MAXN];
 bool can_be_invited[MAXN];
+int parent[MAXN];
+int depth[MAXN];
 
-bool dfs_check_bipartite(int u) {
+void mark_nodes_in_odd_cycle(int u, int v) {
+    // u and v are in the same color and form an odd cycle
+    // Find the path from u to v and mark all nodes on that path
+    vector<int> path_u, path_v;
+    
+    int curr = u;
+    while (curr != -1) {
+        path_u.push_back(curr);
+        curr = parent[curr];
+    }
+    
+    curr = v;
+    while (curr != -1) {
+        path_v.push_back(curr);
+        curr = parent[curr];
+    }
+    
+    // Find LCA
+    int lca = -1;
+    for (int i = 0; i < path_u.size() && i < path_v.size(); i++) {
+        if (path_u[path_u.size() - 1 - i] == path_v[path_v.size() - 1 - i]) {
+            lca = path_u[path_u.size() - 1 - i];
+        } else {
+            break;
+        }
+    }
+    
+    // Mark path from u to lca
+    curr = u;
+    while (curr != lca) {
+        can_be_invited[curr] = true;
+        curr = parent[curr];
+    }
+    
+    // Mark path from v to lca
+    curr = v;
+    while (curr != lca) {
+        can_be_invited[curr] = true;
+        curr = parent[curr];
+    }
+    can_be_invited[lca] = true;
+}
+
+void dfs_find_odd_cycles(int u, int p) {
     visited[u] = true;
-    can_be_invited[u] = true; // Assume can be invited initially
+    parent[u] = p;
     
     for (int v : adj[u]) {
         if (!visited[v]) {
+            depth[v] = depth[u] + 1;
             color[v] = color[u] ^ 1;
-            if (!dfs_check_bipartite(v)) {
-                return false;
-            }
-        } else if (color[v] == color[u]) {
-            // Found odd cycle - all nodes in this component can be invited
-            return false;
+            dfs_find_odd_cycles(v, u);
+        } else if (v != p && color[v] == color[u]) {
+            // Found odd cycle
+            mark_nodes_in_odd_cycle(u, v);
         }
     }
-    return true; // Bipartite
 }
 
 int main() {
@@ -48,19 +91,14 @@ int main() {
     memset(visited, false, sizeof(visited));
     memset(color, -1, sizeof(color));
     memset(can_be_invited, false, sizeof(can_be_invited));
+    memset(parent, -1, sizeof(parent));
+    memset(depth, 0, sizeof(depth));
     
     for (int i = 1; i <= n; i++) {
         if (!visited[i] && degree[i] >= 2) {
             color[i] = 0;
-            if (!dfs_check_bipartite(i)) {
-                // Component has odd cycle, all nodes with degree >= 2 can be invited
-                for (int j = 1; j <= n; j++) {
-                    if (visited[j] && degree[j] >= 2) {
-                        can_be_invited[j] = true;
-                    }
-                }
-            }
-            // If component is bipartite, can_be_invited remains false for these nodes
+            depth[i] = 0;
+            dfs_find_odd_cycles(i, -1);
         }
     }
     
